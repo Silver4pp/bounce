@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ff3344">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>BOUNCE: Nostalgia Adventure</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="game-wrapper">
+    <!-- Top Bar HUD -->
+    <header id="game-hud">
+      <div class="hud-left">
+        <button id="btn-home" class="hud-btn" title="Pilih Level">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+          </svg>
+        </button>
+        <div class="hud-pill hearts-pill" id="hud-hearts" title="Nyawa / Hati">
+          ❤️❤️❤️
+        </div>
+        <div class="hud-pill shield-pill hidden" id="hud-shield" title="Pelindung Gelembung Aktif">
+          🛡️ BUBBLE
+        </div>
+        <div class="hud-pill rings-pill">
+          <span class="hud-icon ring-icon"></span>
+          <span id="hud-rings" class="hud-val">0/5</span>
+        </div>
+      </div>
+
+      <div class="hud-center">
+        <div class="level-badge" id="hud-level-title">Level 1: Greenfield</div>
+      </div>
+
+      <div class="hud-right">
+        <div class="hud-pill score-pill">
+          <span class="hud-label">SKOR</span>
+          <span id="hud-score" class="hud-val">0</span>
+        </div>
+        <div class="hud-pill timer-pill">
+          <span class="hud-label">WAKTU</span>
+          <span id="hud-timer" class="hud-val">00:00</span>
+        </div>
+        <button id="btn-sound" class="hud-btn" title="Toggle Musik & Suara">
+          <span id="sound-icon">🔊</span>
+        </button>
+        <button id="btn-pause" class="hud-btn" title="Jeda (Esc/P)">
+          <span id="pause-icon">⏸️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container">
+      <canvas id="gameCanvas" width="960" height="540"></canvas>
+      <div id="scanline-overlay" class="scanlines"></div>
+      
+      <!-- Tutorial Prompt Banner -->
+      <div id="tutorial-banner" class="tutorial-banner hidden">
+        <div class="tutorial-content">
+          <span class="tutorial-icon">💡</span>
+          <span id="tutorial-text">Gunakan tombol A/D untuk berguling, SPASI / W untuk melompat!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile / On-Screen Touch Controls -->
+    <div id="touch-controls">
+      <div class="touch-left">
+        <button id="touch-left-btn" class="touch-btn" aria-label="Kiri">◀</button>
+        <button id="touch-right-btn" class="touch-btn" aria-label="Kanan">▶</button>
+      </div>
+      <div class="touch-right">
+        <button id="touch-jump-btn" class="touch-btn jump-btn" aria-label="Lompat">
+          <span>LOMPAT</span>
+          <small>↑ / Spasi</small>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modals & Overlays -->
+    <!-- Start / Title Screen Overlay -->
+    <div id="modal-start" class="game-modal show">
+      <div class="modal-card title-card">
+        <div class="ball-mascot"></div>
+        <h1 class="game-title">BOUNCE</h1>
+        <p class="game-subtitle">Nostalgia Red Ball Remastered (100 Levels)</p>
+        <div class="feature-badges">
+          <span>🎮 Manual Jump Control</span>
+          <span>✨ Smooth 60fps</span>
+          <span>🎵 Nostalgic Sound</span>
+          <span>🗺️ 50 Master Levels</span>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="btn-play-game" class="btn-primary pulse">▶ MULAI MAIN</button>
+          <button id="btn-open-levels" class="btn-secondary">📋 PILIH LEVEL (1-50)</button>
+          <button id="btn-open-instructions" class="btn-outline">❓ CARA BERMAIN</button>
+        </div>
+
+        <div class="audio-notice">
+          <small>💡 Klik tombol untuk menyalakan audio nostalgia synthesizer</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Select Modal -->
+    <div id="modal-levels" class="game-modal">
+      <div class="modal-card levels-modal-card">
+        <h2>PILIH LEVEL (1 - 50)</h2>
+        <p class="modal-sub">Pilih dunia dan jelajahi 50 level rintangan & puzzle!</p>
+        
+        <!-- 5 Themed World Tabs -->
+        <div class="world-tabs" id="world-tabs">
+          <button class="world-tab active" data-world="0">Dunia 1 (1-10)</button>
+          <button class="world-tab" data-world="1">Dunia 2 (11-20)</button>
+          <button class="world-tab" data-world="2">Dunia 3 (21-30)</button>
+          <button class="world-tab" data-world="3">Dunia 4 (31-40)</button>
+          <button class="world-tab" data-world="4">Dunia 5 (41-50)</button>
+        </div>
+
+        <div id="levels-grid" class="levels-grid">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 12px;">
+          <button id="btn-close-levels" class="btn-outline">KEMBALI</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="modal-instructions" class="game-modal">
+      <div class="modal-card">
+        <h2>CARA BERMAIN</h2>
+        <div class="instruction-list">
+          <div class="instruction-item">
+            <span class="ins-key">A / D / ◀ ▶</span>
+            <span class="ins-desc"><strong>Berguling:</strong> Bola memiliki inersia dan rolling fisika yang halus.</span>
+          </div>
+          <div class="instruction-item">
+            <span class="ins-key">W / SPASI / ▲</span>
+            <span class="ins-desc"><strong>Melompat:</strong> Bola <em>TIDAK</em> akan memantul otomatis! Kamu memegang kendali penuh kapan harus melompat.</span>
+          </div>
+          <div class="instruction-item">
+            <span class="ins-icon">🟡</span>
+            <span class="ins-desc"><strong>Cincin Emas:</strong> Kumpulkan cincin emas untuk membuka Portal Keluar.</span>
+          </div>
+          <div class="instruction-item">
+            <span class="ins-icon">🌀</span>
+            <span class="ins-desc"><strong>Pegas Pantul:</strong> Trampolin kuning melontarkan bola sangat tinggi!</span>
+          </div>
+          <div class="instruction-item">
+            <span class="ins-icon">🔘 🔑</span>
+            <span class="ins-desc"><strong>Switch & Kunci:</strong> Injak tombol untuk membuka gerbang laser, temukan kunci untuk membuka pintu segel.</span>
+          </div>
+          <div class="instruction-item">
+            <span class="ins-icon">🧪</span>
+            <span class="ins-desc"><strong>Pompa Ukuran:</strong> Pompa Merah mengubahmu menjadi Bola Raksasa pemecah batu, Pompa Biru membuatmu kecil & lincah!</span>
+          </div>
+          <div class="instruction-item">
+            <span class="ins-key">R</span>
+            <span class="ins-desc"><strong>Respawn Cepat:</strong> Mengulang dari checkpoint terakhir.</span>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button id="btn-close-instructions" class="btn-primary">MENGERTI!</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="modal-pause" class="game-modal">
+      <div class="modal-card">
+        <h2>PERMAINAN DIJEDA</h2>
+        <div class="modal-buttons">
+          <button id="btn-resume" class="btn-primary">▶ LANJUTKAN</button>
+          <button id="btn-restart-level" class="btn-secondary">🔄 ULANG LEVEL INI</button>
+          <button id="btn-pause-level-select" class="btn-outline">📋 PILIH LEVEL</button>
+          <button id="btn-toggle-scanlines" class="btn-outline">📺 TOGGLE CRT RETRO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Cleared Modal -->
+    <div id="modal-victory" class="game-modal">
+      <div class="modal-card victory-card">
+        <div class="victory-stars" id="victory-stars">
+          <span class="star">★</span>
+          <span class="star">★</span>
+          <span class="star">★</span>
+        </div>
+        <h2 id="victory-title">LEVEL SELESAI!</h2>
+        <p id="victory-subtitle">Luar biasa! Portal berhasil dibuka!</p>
+
+        <div class="stats-summary">
+          <div class="stat-box">
+            <span class="stat-title">Waktu</span>
+            <span class="stat-val" id="vic-time">00:45</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-title">Cincin</span>
+            <span class="stat-val" id="vic-rings">5/5</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-title">Skor Level</span>
+            <span class="stat-val" id="vic-score">+1250</span>
+          </div>
+          <div class="stat-box highlight">
+            <span class="stat-title">Total Skor</span>
+            <span class="stat-val" id="vic-total-score">3450</span>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="btn-next-level" class="btn-primary pulse">LEVEL SELANJUTNYA ➡</button>
+          <button id="btn-replay-level" class="btn-secondary">🔄 MAIN LAGI</button>
+          <button id="btn-victory-levels" class="btn-outline">📋 MENU LEVEL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-gameover" class="game-modal">
+      <div class="modal-card gameover-card">
+        <div class="gameover-icon">💥</div>
+        <h2>BOLA MELETUS!</h2>
+        <p>Jangan menyerah! Analisa rintangan dan coba lagi.</p>
+        <div class="modal-buttons">
+          <button id="btn-retry-checkpoint" class="btn-primary">🔄 COBA LAGI</button>
+          <button id="btn-gameover-levels" class="btn-outline">📋 PILIH LEVEL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Completed (All levels cleared) -->
+    <div id="modal-game-complete" class="game-modal">
+      <div class="modal-card complete-card">
+        <div class="trophy-icon">🏆</div>
+        <h2>SELAMAT! KAMU JUARA BOUNCE!</h2>
+        <p>Kamu telah menyelesaikan seluruh level rintangan dan puzzle dengan gemilang!</p>
+        <div class="final-score-display">
+          <span>SKOR AKHIR KAMU:</span>
+          <strong id="final-total-score">0</strong>
+        </div>
+        <div class="modal-buttons">
+          <button id="btn-complete-replay" class="btn-primary">MAIN DARI AWAL</button>
+          <button id="btn-complete-levels" class="btn-outline">PILIH LEVEL</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="src/audio.js"></script>
+  <script src="src/particles.js"></script>
+  <script src="src/physics.js"></script>
+  <script src="src/levels.js"></script>
+  <script src="src/game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
