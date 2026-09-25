@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bounce-game-v1';
+const CACHE_NAME = 'bounce-game-v1-9';
 const ASSETS = [
   './',
   './index.html',
@@ -38,9 +38,15 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
+
   e.respondWith(
-    caches.match(e.request).then((res) => {
-      return res || fetch(e.request);
-    })
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });

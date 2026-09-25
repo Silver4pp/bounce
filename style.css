@@ -319,6 +319,26 @@ body {
   pointer-events: auto;
 }
 
+.game-modal[hidden] {
+  display: none;
+}
+
+button:focus-visible,
+.level-card:focus-visible {
+  outline: 3px solid #ffcc00;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(255, 204, 0, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .modal-card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
@@ -400,7 +420,6 @@ body {
 button {
   font-family: var(--font-heading);
   border: none;
-  outline: none;
   cursor: pointer;
   border-radius: 14px;
   padding: 13px 20px;
@@ -411,15 +430,15 @@ button {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #ff4b2b, #ff416c);
+  background: linear-gradient(135deg, #b51a2a, #8f1838);
   color: #fff;
-  box-shadow: 0 8px 20px rgba(255, 65, 108, 0.35);
+  box-shadow: 0 8px 20px rgba(143, 24, 56, 0.38);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #ff5738, #ff517c);
+  background: linear-gradient(135deg, #c62535, #9d1d46);
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(255, 65, 108, 0.5);
+  box-shadow: 0 10px 25px rgba(143, 24, 56, 0.52);
 }
 
 .btn-primary:active {
@@ -579,8 +598,6 @@ button {
   letter-spacing: 1px;
   margin-top: 4px;
 }
-  margin-top: 6px;
-}
 
 /* INSTRUCTIONS */
 .instruction-list {
@@ -701,4 +718,278 @@ button {
   font-size: 32px;
   font-family: var(--font-retro);
   margin-top: 6px;
+}
+
+/* Progress & completion states */
+.progress-overview {
+  margin: -10px auto 18px auto;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 204, 0, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 204, 0, 0.08);
+  color: #ffe08a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.level-card {
+  border-width: 2px;
+}
+
+.level-card.completed {
+  border-color: rgba(46, 204, 113, 0.72);
+  background: rgba(46, 204, 113, 0.12);
+}
+
+.level-card.uncompleted {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.lvl-status {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lvl-status.done {
+  color: #07140c;
+  background: #2ecc71;
+}
+
+.lvl-status.pending {
+  color: #9ba8b8;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.level-card .lvl-completion {
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #9ba8b8;
+}
+
+.level-card.completed .lvl-completion {
+  color: #8ff0b2;
+}
+
+/* Strong visual separation for completed and unfinished levels */
+.level-status-legend {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px 0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.legend-item.done {
+  color: #8ff0b2;
+  background: rgba(46, 204, 113, 0.12);
+  border-color: rgba(46, 204, 113, 0.45);
+}
+
+.legend-item.pending {
+  color: #c4ceda;
+  background: rgba(255,255,255,0.06);
+}
+
+.legend-dot {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 11px;
+}
+
+.legend-item.done .legend-dot {
+  color: #07140c;
+  background: #2ecc71;
+}
+
+.legend-item.pending .legend-dot {
+  color: #9ba8b8;
+  background: rgba(255,255,255,0.1);
+}
+
+.level-card.completed {
+  border-color: #2ecc71;
+  background: linear-gradient(180deg, rgba(46, 204, 113, 0.22), rgba(46, 204, 113, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(46, 204, 113, 0.18);
+}
+
+.level-card.completed .lvl-num {
+  color: #8ff0b2;
+}
+
+.level-card.completed .lvl-title {
+  color: #e6fff0;
+}
+
+.level-card.completed::after {
+  content: "SELESAI";
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(46, 204, 113, 0.18);
+  color: #8ff0b2;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+}
+
+.level-card.uncompleted {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.level-card.uncompleted .lvl-num,
+.level-card.uncompleted .lvl-title {
+  color: #aeb9c8;
+}
+
+.level-card.uncompleted::after {
+  content: "BELUM";
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #aeb9c8;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+}
+
+
+/* Completion status force-visibility patch */
+.level-card .lvl-completion {
+  display: block !important;
+  min-height: 16px;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px !important;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.level-card.completed .lvl-completion {
+  background: rgba(46, 204, 113, 0.22);
+  color: #8ff0b2 !important;
+}
+
+.level-card.uncompleted .lvl-completion {
+  background: rgba(255, 255, 255, 0.09);
+  color: #c8d2df !important;
+}
+
+/* Sequential level unlock states */
+.legend-item.available {
+  color: #9edbff;
+  background: rgba(0, 210, 255, 0.12);
+  border-color: rgba(0, 210, 255, 0.42);
+}
+
+.legend-item.available .legend-dot {
+  color: #06131a;
+  background: #00d2ff;
+}
+
+.legend-item.locked {
+  color: #9ba8b8;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.legend-item.locked .legend-dot {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.level-card.completed {
+  border-color: #2ecc71 !important;
+  background: linear-gradient(180deg, rgba(46, 204, 113, 0.28), rgba(46, 204, 113, 0.1)) !important;
+  opacity: 1 !important;
+}
+
+.level-card.available {
+  border-color: #00d2ff !important;
+  background: linear-gradient(180deg, rgba(0, 210, 255, 0.18), rgba(0, 210, 255, 0.07)) !important;
+  opacity: 1 !important;
+}
+
+.level-card.locked {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  opacity: 0.52 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(0.85);
+}
+
+.level-card.locked:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.lvl-status.available {
+  color: #06131a;
+  background: #00d2ff;
+}
+
+.lvl-status.locked {
+  color: #d6dce5;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 10px;
+}
+
+.level-card.available .lvl-completion {
+  background: rgba(0, 210, 255, 0.16);
+  color: #9edbff !important;
+}
+
+.level-card.locked .lvl-completion {
+  background: rgba(255, 255, 255, 0.08);
+  color: #aeb9c8 !important;
+}
+
+.level-card.available::after {
+  content: "BUKA" !important;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 210, 255, 0.16);
+  color: #9edbff;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+}
+
+.level-card.locked::after {
+  content: "TERKUNCI" !important;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #aeb9c8;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
 }

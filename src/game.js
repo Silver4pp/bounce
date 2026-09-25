@@ -19,18 +19,22 @@ class BounceGame {
     this.lives = 3;
     this.levelTime = 0;
     this.checkpoint = { x: 0, y: 0 };
-    this.levelStars = new Array(50).fill(0);
+    this.storageKey = 'bounce_stars_v1';
+    this.legacyStorageKey = 'bounce_stars_100';
+    this.levelStars = new Array(this.levelManager.totalLevels).fill(0);
     this.activeWorldTab = 0;
     this.activeSignText = null;
     this.pipeCooldown = 0;
+    this.activeModalId = null;
+    this.lastFocusedElement = null;
 
     // Load saved stars from localStorage
     try {
-      const saved = localStorage.getItem('bounce_stars_100');
+      const saved = localStorage.getItem(this.storageKey) || localStorage.getItem(this.legacyStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          for (let i = 0; i < Math.min(100, parsed.length); i++) {
+          for (let i = 0; i < Math.min(this.levelStars.length, parsed.length); i++) {
             this.levelStars[i] = parsed[i] || 0;
           }
         }
@@ -53,7 +57,8 @@ class BounceGame {
       left: false,
       right: false,
       jump: false,
-      jumpJustPressed: false
+      jumpJustPressed: false,
+      down: false
     };
 
     // Game state flags
@@ -63,6 +68,8 @@ class BounceGame {
     // UI elements
     this.bindUI();
     this.bindInput();
+
+    this.updateProgressOverview();
 
     // Start rendering loop
     requestAnimationFrame(this.loop.bind(this));
@@ -86,6 +93,7 @@ class BounceGame {
     this.camera.y = this.player.y - this.camera.height / 2;
 
     this.updateHUD();
+    this.updateProgressOverview();
     this.showTutorial(this.currentLevel.tutorialText);
     this.state = 'playing';
 
@@ -106,7 +114,7 @@ class BounceGame {
     } else {
       // Game Over
       this.state = 'gameover';
-      document.getElementById('modal-gameover').classList.add('show');
+      this.showModal('modal-gameover');
     }
   }
 
@@ -122,6 +130,16 @@ class BounceGame {
     this.tutTimer = setTimeout(() => {
       banner.classList.add('hidden');
     }, 6000);
+  }
+
+  updateProgressOverview() {
+    const progressEl = document.getElementById('progress-overview');
+    if (!progressEl) return;
+
+    const completed = this.levelStars.filter(stars => stars > 0).length;
+    const totalStars = this.levelStars.reduce((sum, stars) => sum + (stars || 0), 0);
+    const maxStars = this.levelManager.totalLevels * 3;
+    progressEl.innerText = `Progress: ${completed}/${this.levelManager.totalLevels} level selesai · ${totalStars}/${maxStars} bintang`;
   }
 
   updateHUD() {
@@ -140,8 +158,8 @@ class BounceGame {
     
     // Collected rings count
     const collectedRings = this.currentLevel ? this.currentLevel.rings.filter(r => r.collected).length : 0;
-    const totalRings = this.currentLevel ? this.currentLevel.targetRings : 0;
-    document.getElementById('hud-rings').innerText = `${collectedRings}/${totalRings}`;
+    const requiredRings = this.currentLevel ? this.currentLevel.targetRings : 0;
+    document.getElementById('hud-rings').innerText = `${Math.min(collectedRings, requiredRings)}/${requiredRings}`;
 
     document.getElementById('hud-score').innerText = this.score + this.levelScore;
     document.getElementById('hud-level-title').innerText = this.currentLevel ? `${this.currentLevel.title} (${this.currentLevel.id}/${this.levelManager.totalLevels})` : 'Bounce';
@@ -152,15 +170,94 @@ class BounceGame {
     document.getElementById('hud-timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
+  showModal(id, focusSelector = 'button') {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    this.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    modal.hidden = false;
+    modal.inert = false;
+    modal.setAttribute('aria-hidden', 'false');
+    modal.classList.add('show');
+    this.activeModalId = id;
+
+    requestAnimationFrame(() => {
+      const target = modal.querySelector(focusSelector) || modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (target && typeof target.focus === 'function') target.focus();
+    });
+  }
+
+  hideModal(id, restoreFocus = true) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.inert = true;
+    modal.hidden = true;
+
+    if (this.activeModalId === id) this.activeModalId = null;
+    if (restoreFocus && this.lastFocusedElement && typeof this.lastFocusedElement.focus === 'function') {
+      this.lastFocusedElement.focus();
+    }
+  }
+
+  handleModalEscape() {
+    if (!this.activeModalId) return false;
+    const id = this.activeModalId;
+
+    if (id === 'modal-instructions') {
+      this.hideModal(id);
+      return true;
+    }
+    if (id === 'modal-levels') {
+      this.hideModal(id);
+      if (this.state !== 'playing') this.showModal('modal-start', '#btn-play-game');
+      return true;
+    }
+    if (id === 'modal-pause') {
+      this.togglePause();
+      return true;
+    }
+    return false;
+  }
+
+  trapModalFocus(e) {
+    if (!this.activeModalId || e.key !== 'Tab') return;
+    const modal = document.getElementById(this.activeModalId);
+    if (!modal || modal.hidden) return;
+
+    const focusables = Array.from(modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+      .filter(el => !el.disabled && el.offsetParent !== null);
+    if (!focusables.length) return;
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
   // --- INPUT HANDLING ---
   bindInput() {
     const handleKeyDown = (e) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Space'].includes(e.key) || e.code === 'Space') {
-        e.preventDefault();
-      }
+      this.trapModalFocus(e);
 
       const key = e.key ? e.key.toLowerCase() : '';
       const code = e.code || '';
+
+      if (key === 'escape' && this.handleModalEscape()) {
+        e.preventDefault();
+        return;
+      }
+
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Space'].includes(e.key) || e.code === 'Space') {
+        e.preventDefault();
+      }
 
       if (key === 'arrowleft' || key === 'a' || code === 'KeyA' || code === 'ArrowLeft') {
         this.keys.left = true;
@@ -237,7 +334,7 @@ class BounceGame {
   // --- UI & MODAL BINDINGS ---
   bindUI() {
     document.getElementById('btn-play-game').addEventListener('click', () => {
-      document.getElementById('modal-start').classList.remove('show');
+      this.hideModal('modal-start', false);
       this.startLevel(0);
     });
 
@@ -250,18 +347,18 @@ class BounceGame {
     });
 
     document.getElementById('btn-close-levels').addEventListener('click', () => {
-      document.getElementById('modal-levels').classList.remove('show');
+      this.hideModal('modal-levels', false);
       if (this.state !== 'playing') {
-        document.getElementById('modal-start').classList.add('show');
+        this.showModal('modal-start', '#btn-play-game');
       }
     });
 
     document.getElementById('btn-open-instructions').addEventListener('click', () => {
-      document.getElementById('modal-instructions').classList.add('show');
+      this.showModal('modal-instructions', '#btn-close-instructions');
     });
 
     document.getElementById('btn-close-instructions').addEventListener('click', () => {
-      document.getElementById('modal-instructions').classList.remove('show');
+      this.hideModal('modal-instructions');
     });
 
     const btnSound = document.getElementById('btn-sound');
@@ -283,12 +380,12 @@ class BounceGame {
     });
 
     document.getElementById('btn-restart-level').addEventListener('click', () => {
-      document.getElementById('modal-pause').classList.remove('show');
+      this.hideModal('modal-pause', false);
       this.startLevel(this.levelManager.currentLevelIndex);
     });
 
     document.getElementById('btn-pause-level-select').addEventListener('click', () => {
-      document.getElementById('modal-pause').classList.remove('show');
+      this.hideModal('modal-pause', false);
       this.openLevelSelect();
     });
 
@@ -297,46 +394,46 @@ class BounceGame {
     });
 
     document.getElementById('btn-next-level').addEventListener('click', () => {
-      document.getElementById('modal-victory').classList.remove('show');
+      this.hideModal('modal-victory', false);
       const nextIdx = this.levelManager.currentLevelIndex + 1;
       if (nextIdx < this.levelManager.totalLevels) {
         this.startLevel(nextIdx);
       } else {
-        document.getElementById('modal-game-complete').classList.add('show');
+        this.showModal('modal-game-complete', '#btn-complete-replay');
         document.getElementById('final-total-score').innerText = this.score;
       }
     });
 
     document.getElementById('btn-replay-level').addEventListener('click', () => {
-      document.getElementById('modal-victory').classList.remove('show');
+      this.hideModal('modal-victory', false);
       this.startLevel(this.levelManager.currentLevelIndex);
     });
 
     document.getElementById('btn-victory-levels').addEventListener('click', () => {
-      document.getElementById('modal-victory').classList.remove('show');
+      this.hideModal('modal-victory', false);
       this.openLevelSelect();
     });
 
     document.getElementById('btn-retry-checkpoint').addEventListener('click', () => {
-      document.getElementById('modal-gameover').classList.remove('show');
+      this.hideModal('modal-gameover', false);
       this.lives = 3;
       this.startLevel(this.levelManager.currentLevelIndex);
     });
 
     document.getElementById('btn-gameover-levels').addEventListener('click', () => {
-      document.getElementById('modal-gameover').classList.remove('show');
+      this.hideModal('modal-gameover', false);
       this.openLevelSelect();
     });
 
     document.getElementById('btn-complete-replay').addEventListener('click', () => {
-      document.getElementById('modal-game-complete').classList.remove('show');
+      this.hideModal('modal-game-complete', false);
       this.score = 0;
       this.lives = 3;
       this.startLevel(0);
     });
 
     document.getElementById('btn-complete-levels').addEventListener('click', () => {
-      document.getElementById('modal-game-complete').classList.remove('show');
+      this.hideModal('modal-game-complete', false);
       this.openLevelSelect();
     });
   }
@@ -344,10 +441,10 @@ class BounceGame {
   togglePause() {
     if (this.state === 'playing') {
       this.state = 'paused';
-      document.getElementById('modal-pause').classList.add('show');
+      this.showModal('modal-pause', '#btn-resume');
     } else if (this.state === 'paused') {
       this.state = 'playing';
-      document.getElementById('modal-pause').classList.remove('show');
+      this.hideModal('modal-pause', false);
     }
   }
 
@@ -381,7 +478,8 @@ class BounceGame {
 
     for (let idx = startIdx; idx < endIdx; idx++) {
       const meta = this.levelManager.getLevelMeta(idx);
-      const card = document.createElement('div');
+      const card = document.createElement('button');
+      card.type = 'button';
       card.className = 'level-card';
       if (idx === this.levelManager.currentLevelIndex) {
         card.classList.add('active-play');
@@ -389,24 +487,38 @@ class BounceGame {
 
       const numDisplay = (idx + 1).toString().padStart(2, '0');
       const starsCount = this.levelStars[idx] || 0;
+      const isCompleted = starsCount > 0;
+      const isUnlocked = idx === 0 || (this.levelStars[idx - 1] || 0) > 0;
       const stars = '★'.repeat(starsCount) + '☆'.repeat(3 - starsCount);
+      const statusText = isCompleted ? 'Selesai' : (isUnlocked ? 'Tersedia' : 'Terkunci');
+      const statusIcon = isCompleted ? '✓' : (isUnlocked ? '▶' : '🔒');
+      const levelTitle = meta.title.split(':')[1] || meta.title;
 
+      card.classList.toggle('completed', isCompleted);
+      card.classList.toggle('available', !isCompleted && isUnlocked);
+      card.classList.toggle('locked', !isUnlocked);
+      card.disabled = !isUnlocked;
+      card.setAttribute('aria-label', `Level ${idx + 1}: ${levelTitle}. ${statusText}. ${starsCount} dari 3 bintang.`);
       card.innerHTML = `
+        <div class="lvl-status ${isCompleted ? 'done' : (isUnlocked ? 'available' : 'locked')}" aria-hidden="true">${statusIcon}</div>
         <div class="lvl-num">${numDisplay}</div>
-        <div class="lvl-title">${meta.title.split(':')[1] || meta.title}</div>
-        <div class="lvl-stars">${stars}</div>
+        <div class="lvl-title">${levelTitle}</div>
+        <div class="lvl-completion">${statusText}</div>
+        <div class="lvl-stars" aria-hidden="true">${stars}</div>
       `;
 
-      card.addEventListener('click', () => {
-        document.getElementById('modal-levels').classList.remove('show');
-        document.getElementById('modal-start').classList.remove('show');
-        this.startLevel(idx);
-      });
+      if (isUnlocked) {
+        card.addEventListener('click', () => {
+          this.hideModal('modal-levels', false);
+          this.hideModal('modal-start', false);
+          this.startLevel(idx);
+        });
+      }
 
       grid.appendChild(card);
     }
 
-    document.getElementById('modal-levels').classList.add('show');
+    this.showModal('modal-levels', '.level-card');
   }
 
   // --- MAIN LOOP ---
@@ -703,7 +815,7 @@ class BounceGame {
           if (collectedCount >= this.currentLevel.targetRings) {
             this.currentLevel.portal.open = true;
             if (window.sound) window.sound.playCheckpoint();
-            this.showTutorial("🌟 Semua Cincin Terkumpul! Portal Terbuka!");
+            this.showTutorial("🌟 Cincin cukup terkumpul! Portal Terbuka!");
           }
         }
       }
@@ -877,9 +989,10 @@ class BounceGame {
 
     this.score += totalLevelGain;
 
+    const totalRings = this.currentLevel.totalRings || this.currentLevel.rings.length;
     let stars = 1;
     if (ringsCollected >= this.currentLevel.targetRings) stars = 2;
-    if (ringsCollected >= this.currentLevel.targetRings && this.levelTime <= parTime * 1.25) stars = 3;
+    if (ringsCollected >= totalRings && this.levelTime <= parTime * 1.25) stars = 3;
 
     this.levelStars[this.levelManager.currentLevelIndex] = Math.max(
       this.levelStars[this.levelManager.currentLevelIndex],
@@ -887,17 +1000,17 @@ class BounceGame {
     );
 
     try {
-      localStorage.setItem('bounce_stars_100', JSON.stringify(this.levelStars));
+      localStorage.setItem(this.storageKey, JSON.stringify(this.levelStars));
     } catch (e) {}
+    this.updateProgressOverview();
 
-    const vicModal = document.getElementById('modal-victory');
     document.getElementById('victory-stars').innerHTML = '★'.repeat(stars) + '<span style="opacity:0.25">' + '★'.repeat(3 - stars) + '</span>';
     document.getElementById('vic-time').innerText = document.getElementById('hud-timer').innerText;
-    document.getElementById('vic-rings').innerText = `${ringsCollected}/${this.currentLevel.targetRings}`;
+    document.getElementById('vic-rings').innerText = `${ringsCollected}/${totalRings}`;
     document.getElementById('vic-score').innerText = `+${totalLevelGain}`;
     document.getElementById('vic-total-score').innerText = `${this.score}`;
 
-    vicModal.classList.add('show');
+    this.showModal('modal-victory', '#btn-next-level');
   }
 
   // --- RENDERING PIPELINE ---
@@ -978,6 +1091,7 @@ class BounceGame {
     const endX = Math.min(lvl.width, Math.ceil((this.camera.x + this.camera.width) / ts) + 1);
     const startY = Math.max(0, Math.floor(this.camera.y / ts));
     const endY = Math.min(lvl.height, Math.ceil((this.camera.y + this.camera.height) / ts) + 1);
+    const time = Date.now() / 1000;
 
     for (let y = startY; y < endY; y++) {
       for (let x = startX; x < endX; x++) {
@@ -987,16 +1101,39 @@ class BounceGame {
         const px = x * ts;
         const py = y * ts;
 
-        // 1. Pit Abyss
+        // 1. Void pit: readable but calm, without repeated harsh red stripes
         if (tile.type === 'pit') {
+          ctx.save();
           const pitGrad = ctx.createLinearGradient(px, py, px, py + ts);
-          pitGrad.addColorStop(0, 'rgba(0,0,0,0.5)');
-          pitGrad.addColorStop(1, '#000000');
+          pitGrad.addColorStop(0, 'rgba(18, 24, 38, 0.88)');
+          pitGrad.addColorStop(0.55, 'rgba(8, 10, 22, 0.96)');
+          pitGrad.addColorStop(1, '#02030a');
           ctx.fillStyle = pitGrad;
           ctx.fillRect(px, py, ts, ts);
 
-          ctx.fillStyle = '#e74c3c';
-          ctx.fillRect(px, py, ts, 2);
+          const tileAbove = lvl.map[y - 1] ? lvl.map[y - 1][x] : null;
+          if (!tileAbove || tileAbove.type !== 'pit') {
+            const edgeGrad = ctx.createLinearGradient(px, py, px, py + 8);
+            edgeGrad.addColorStop(0, 'rgba(154, 115, 255, 0.5)');
+            edgeGrad.addColorStop(1, 'rgba(154, 115, 255, 0)');
+            ctx.fillStyle = edgeGrad;
+            ctx.fillRect(px, py, ts, 8);
+
+            ctx.strokeStyle = 'rgba(210, 225, 255, 0.22)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px, py + 0.5);
+            ctx.lineTo(px + ts, py + 0.5);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = 'rgba(120, 150, 255, 0.12)';
+          const moteX = px + ((x * 11 + y * 7) % 24) + 4;
+          const moteY = py + ((x * 5 + y * 13) % 20) + 6;
+          ctx.beginPath();
+          ctx.arc(moteX, moteY, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
           continue;
         }
 
@@ -1016,6 +1153,51 @@ class BounceGame {
             ctx.beginPath();
             ctx.ellipse(px + 16, py + k, 3, 4, 0, 0, Math.PI * 2);
             ctx.stroke();
+          }
+          ctx.restore();
+          continue;
+        }
+
+        // 2.5. Water asset (solid: false, drawn before the non-solid skip)
+        if (tile.type === 'water') {
+          ctx.save();
+          const waveA = Math.sin(time * 3.2 + x * 0.85) * 2.5;
+          const waveB = Math.cos(time * 2.4 + x * 0.55 + y) * 1.5;
+          const waterGrad = ctx.createLinearGradient(px, py, px, py + ts);
+          waterGrad.addColorStop(0, 'rgba(80, 210, 255, 0.78)');
+          waterGrad.addColorStop(0.45, 'rgba(0, 142, 220, 0.66)');
+          waterGrad.addColorStop(1, 'rgba(0, 62, 140, 0.72)');
+          ctx.fillStyle = waterGrad;
+          ctx.fillRect(px, py, ts, ts);
+
+          const tileAbove = lvl.map[y - 1] ? lvl.map[y - 1][x] : null;
+          if (!tileAbove || tileAbove.type !== 'water') {
+            ctx.fillStyle = 'rgba(220, 250, 255, 0.9)';
+            ctx.beginPath();
+            ctx.moveTo(px, py + 4 + waveA);
+            ctx.quadraticCurveTo(px + 8, py + waveB, px + 16, py + 4 - waveA);
+            ctx.quadraticCurveTo(px + 24, py + 8 + waveB, px + ts, py + 4 + waveA);
+            ctx.lineTo(px + ts, py + 10);
+            ctx.lineTo(px, py + 10);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          ctx.strokeStyle = 'rgba(190, 240, 255, 0.42)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(px + 4, py + 18 + waveB);
+          ctx.quadraticCurveTo(px + 12, py + 14 + waveA, px + 20, py + 18 - waveB);
+          ctx.quadraticCurveTo(px + 26, py + 22, px + 31, py + 18 + waveA);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(230, 252, 255, 0.65)';
+          for (let i = 0; i < 2; i++) {
+            const bx = px + 8 + i * 14 + Math.sin(time * 2 + x + i) * 2;
+            const by = py + 12 + ((x * 7 + y * 11 + i * 9) % 16);
+            ctx.beginPath();
+            ctx.arc(bx, by, 1.6, 0, Math.PI * 2);
+            ctx.fill();
           }
           ctx.restore();
           continue;
@@ -1264,20 +1446,6 @@ class BounceGame {
           ctx.fillRect(px + ts - 5, py + 3, 2, 2);
           ctx.fillRect(px + 3, py + ts - 5, 2, 2);
           ctx.fillRect(px + ts - 5, py + ts - 5, 2, 2);
-        } else if (tile.type === 'water') {
-          // Translucent sparkling water body
-          const waveOff = Math.sin(time * 3 + px * 0.1) * 3;
-          ctx.fillStyle = 'rgba(0, 168, 255, 0.42)';
-          ctx.fillRect(px, py, ts, ts);
-
-          // Top water surface ripple if tile above is not water
-          const tileAbove = lvl.map[y - 1] ? lvl.map[y - 1][x] : null;
-          if (!tileAbove || tileAbove.type !== 'water') {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-            ctx.fillRect(px, py + waveOff, ts, 3);
-            ctx.fillStyle = 'rgba(173, 216, 230, 0.5)';
-            ctx.fillRect(px, py + waveOff + 3, ts, 4);
-          }
         }
       }
     }
@@ -1378,45 +1546,105 @@ class BounceGame {
       const isSteaming = cyclePos < steam.activeDuration;
       const isWarning = !isSteaming && (steam.cycle - cyclePos < 0.6);
 
-      // Pressure Gauge on side of the pipe
-      const gaugeX = steam.x - 2;
-      const gaugeY = steam.y + 14;
-      ctx.fillStyle = '#b7950b';
-      ctx.beginPath(); ctx.arc(gaugeX, gaugeY, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#fef9e7';
-      ctx.beginPath(); ctx.arc(gaugeX, gaugeY, 4.5, 0, Math.PI * 2); ctx.fill();
-      const needleAngle = -Math.PI * 0.7 + (cyclePos / steam.cycle) * Math.PI * 1.4;
-      ctx.strokeStyle = isWarning || isSteaming ? '#e74c3c' : '#2c3e50';
-      ctx.lineWidth = 1.2;
+      // Steam pipe base asset: metal vent, rim, pressure gauge, and warning light
+      const pipeGrad = ctx.createLinearGradient(steam.x, steam.y - 2, steam.x + 32, steam.y + 34);
+      pipeGrad.addColorStop(0, '#f6c46a');
+      pipeGrad.addColorStop(0.4, '#b8732a');
+      pipeGrad.addColorStop(1, '#5b3418');
+      ctx.fillStyle = pipeGrad;
       ctx.beginPath();
-      ctx.moveTo(gaugeX, gaugeY);
-      ctx.lineTo(gaugeX + Math.cos(needleAngle) * 4, gaugeY + Math.sin(needleAngle) * 4);
+      ctx.roundRect(steam.x + 2, steam.y + 2, 28, 30, [6]);
+      ctx.fill();
+      ctx.strokeStyle = '#3a220f';
+      ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Warning Blinking LED on rim
-      const ledColor = isSteaming ? '#e74c3c' : isWarning ? (Math.sin(time * 24) > 0 ? '#ff0000' : '#550000') : '#27ae60';
+      const rimGrad = ctx.createLinearGradient(steam.x, steam.y - 7, steam.x + 32, steam.y + 7);
+      rimGrad.addColorStop(0, '#fff0a8');
+      rimGrad.addColorStop(0.5, '#d88b2d');
+      rimGrad.addColorStop(1, '#6b3d16');
+      ctx.fillStyle = rimGrad;
+      ctx.beginPath();
+      ctx.roundRect(steam.x - 2, steam.y - 5, 36, 12, [6]);
+      ctx.fill();
+      ctx.strokeStyle = '#3a220f';
+      ctx.stroke();
+
+      ctx.fillStyle = '#1b120b';
+      ctx.beginPath();
+      ctx.ellipse(steam.x + 16, steam.y - 3, 13, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(40, 20, 10, 0.32)';
+      for (let stripe = 9; stripe < 29; stripe += 8) {
+        ctx.fillRect(steam.x + stripe, steam.y + 8, 3, 21);
+      }
+
+      const hazardAlpha = isSteaming ? 0.28 : isWarning ? 0.18 : 0.07;
+      ctx.fillStyle = `rgba(231, 76, 60, ${hazardAlpha})`;
+      ctx.fillRect(steam.x - 6, steam.y - 56, 44, 68);
+      if (isWarning || isSteaming) {
+        ctx.strokeStyle = isSteaming ? 'rgba(255, 90, 60, 0.75)' : 'rgba(255, 180, 40, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(steam.x - 6, steam.y - 56, 44, 68);
+        ctx.setLineDash([]);
+      }
+
+      const gaugeX = steam.x - 3;
+      const gaugeY = steam.y + 15;
+      ctx.fillStyle = '#b7950b';
+      ctx.beginPath(); ctx.arc(gaugeX, gaugeY, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fef9e7';
+      ctx.beginPath(); ctx.arc(gaugeX, gaugeY, 5.2, 0, Math.PI * 2); ctx.fill();
+      const needleAngle = -Math.PI * 0.7 + (cyclePos / steam.cycle) * Math.PI * 1.4;
+      ctx.strokeStyle = isWarning || isSteaming ? '#e74c3c' : '#2c3e50';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(gaugeX, gaugeY);
+      ctx.lineTo(gaugeX + Math.cos(needleAngle) * 4.7, gaugeY + Math.sin(needleAngle) * 4.7);
+      ctx.stroke();
+
+      const ledColor = isSteaming ? '#ff3b2f' : isWarning ? (Math.sin(time * 24) > 0 ? '#ffb000' : '#733700') : '#27ae60';
       ctx.fillStyle = ledColor;
       ctx.shadowColor = ledColor;
-      ctx.shadowBlur = isSteaming || isWarning ? 8 : 0;
+      ctx.shadowBlur = isSteaming || isWarning ? 10 : 2;
       ctx.beginPath();
-      ctx.arc(steam.x + 4, steam.y + 2, 2.5, 0, Math.PI * 2);
+      ctx.arc(steam.x + 27, steam.y + 2, 3.3, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Multilayered Steam Plume
+      if (isWarning && !isSteaming) {
+        ctx.fillStyle = 'rgba(255, 176, 0, 0.92)';
+        ctx.font = 'bold 10px Fredoka, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', steam.x + 16, steam.y - 18 + Math.sin(time * 20) * 2);
+      }
+
+      // Multilayered steam plume with readable danger column
       if (isSteaming) {
-        const steamGrad = ctx.createLinearGradient(steam.x + 16, steam.y, steam.x + 16, steam.y - 54);
-        steamGrad.addColorStop(0, 'rgba(255, 220, 180, 0.85)');
-        steamGrad.addColorStop(0.4, 'rgba(240, 245, 255, 0.6)');
+        const steamGrad = ctx.createLinearGradient(steam.x + 16, steam.y, steam.x + 16, steam.y - 62);
+        steamGrad.addColorStop(0, 'rgba(255, 235, 195, 0.92)');
+        steamGrad.addColorStop(0.36, 'rgba(225, 245, 255, 0.72)');
         steamGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
         ctx.fillStyle = steamGrad;
-        for (let i = 0; i < 4; i++) {
-          const puffX = steam.x + 16 + Math.sin(time * 16 + i * 2) * (4 + i * 2);
-          const puffY = steam.y - 10 - i * 12;
+        for (let i = 0; i < 5; i++) {
+          const puffX = steam.x + 16 + Math.sin(time * 14 + i * 2.1) * (4 + i * 2.4);
+          const puffY = steam.y - 8 - i * 12;
           ctx.beginPath();
-          ctx.arc(puffX, puffY, 9 + i * 4, 0, Math.PI * 2);
+          ctx.ellipse(puffX, puffY, 8 + i * 3.8, 10 + i * 3.2, Math.sin(time + i) * 0.25, 0, Math.PI * 2);
           ctx.fill();
+        }
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+        ctx.lineWidth = 2;
+        for (let jet = 0; jet < 3; jet++) {
+          const jx = steam.x + 10 + jet * 6 + Math.sin(time * 18 + jet) * 2;
+          ctx.beginPath();
+          ctx.moveTo(jx, steam.y - 4);
+          ctx.bezierCurveTo(jx - 6, steam.y - 18, jx + 8, steam.y - 36, jx, steam.y - 56);
+          ctx.stroke();
         }
       }
       ctx.restore();

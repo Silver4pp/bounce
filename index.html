@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#ff3344">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>BOUNCE: Nostalgia Adventure</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=level26-fix-20260925-1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
     <!-- Top Bar HUD -->
     <header id="game-hud">
       <div class="hud-left">
-        <button id="btn-home" class="hud-btn" title="Pilih Level">
+        <button id="btn-home" class="hud-btn" title="Pilih Level" aria-label="Pilih level">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
           </svg>
@@ -50,10 +50,10 @@
           <span class="hud-label">WAKTU</span>
           <span id="hud-timer" class="hud-val">00:00</span>
         </div>
-        <button id="btn-sound" class="hud-btn" title="Toggle Musik & Suara">
+        <button id="btn-sound" class="hud-btn" title="Toggle Musik & Suara" aria-label="Toggle musik dan suara">
           <span id="sound-icon">🔊</span>
         </button>
-        <button id="btn-pause" class="hud-btn" title="Jeda (Esc/P)">
+        <button id="btn-pause" class="hud-btn" title="Jeda (Esc/P)" aria-label="Jeda permainan">
           <span id="pause-icon">⏸️</span>
         </button>
       </div>
@@ -61,11 +61,11 @@
 
     <!-- Canvas Container -->
     <div id="canvas-container">
-      <canvas id="gameCanvas" width="960" height="540"></canvas>
+      <canvas id="gameCanvas" width="960" height="540" aria-label="Area permainan Bounce. Gunakan A atau panah kiri untuk bergerak ke kiri, D atau panah kanan untuk bergerak ke kanan, dan W atau Spasi untuk melompat.">Game Bounce membutuhkan browser yang mendukung canvas.</canvas>
       <div id="scanline-overlay" class="scanlines"></div>
       
       <!-- Tutorial Prompt Banner -->
-      <div id="tutorial-banner" class="tutorial-banner hidden">
+      <div id="tutorial-banner" class="tutorial-banner hidden" aria-live="polite">
         <div class="tutorial-content">
           <span class="tutorial-icon">💡</span>
           <span id="tutorial-text">Gunakan tombol A/D untuk berguling, SPASI / W untuk melompat!</span>
@@ -89,16 +89,20 @@
 
     <!-- Modals & Overlays -->
     <!-- Start / Title Screen Overlay -->
-    <div id="modal-start" class="game-modal show">
+    <div id="modal-start" class="game-modal show" role="dialog" aria-modal="true" aria-label="Mulai Bounce" aria-hidden="false">
       <div class="modal-card title-card">
         <div class="ball-mascot"></div>
         <h1 class="game-title">BOUNCE</h1>
-        <p class="game-subtitle">Nostalgia Red Ball Remastered (100 Levels)</p>
+        <p class="game-subtitle">Nostalgia Red Ball Remastered (50 Level)</p>
         <div class="feature-badges">
           <span>🎮 Manual Jump Control</span>
           <span>✨ Smooth 60fps</span>
           <span>🎵 Nostalgic Sound</span>
           <span>🗺️ 50 Master Levels</span>
+        </div>
+
+        <div class="progress-overview" id="progress-overview" aria-live="polite">
+          Progress: 0/50 level selesai · 0 bintang
         </div>
 
         <div class="modal-buttons">
@@ -114,10 +118,15 @@
     </div>
 
     <!-- Level Select Modal -->
-    <div id="modal-levels" class="game-modal">
+    <div id="modal-levels" class="game-modal" role="dialog" aria-modal="true" aria-label="Pilih level" aria-hidden="true" hidden inert>
       <div class="modal-card levels-modal-card">
         <h2>PILIH LEVEL (1 - 50)</h2>
         <p class="modal-sub">Pilih dunia dan jelajahi 50 level rintangan & puzzle!</p>
+        <div class="level-status-legend" aria-label="Keterangan status level">
+          <span class="legend-item done"><span class="legend-dot">✓</span> Selesai</span>
+          <span class="legend-item available"><span class="legend-dot">▶</span> Bisa dimainkan</span>
+          <span class="legend-item locked"><span class="legend-dot">🔒</span> Terkunci</span>
+        </div>
         
         <!-- 5 Themed World Tabs -->
         <div class="world-tabs" id="world-tabs">
@@ -139,7 +148,7 @@
     </div>
 
     <!-- Instructions Modal -->
-    <div id="modal-instructions" class="game-modal">
+    <div id="modal-instructions" class="game-modal" role="dialog" aria-modal="true" aria-label="Cara bermain" aria-hidden="true" hidden inert>
       <div class="modal-card">
         <h2>CARA BERMAIN</h2>
         <div class="instruction-list">
@@ -179,7 +188,7 @@
     </div>
 
     <!-- Pause Modal -->
-    <div id="modal-pause" class="game-modal">
+    <div id="modal-pause" class="game-modal" role="dialog" aria-modal="true" aria-label="Permainan dijeda" aria-hidden="true" hidden inert>
       <div class="modal-card">
         <h2>PERMAINAN DIJEDA</h2>
         <div class="modal-buttons">
@@ -192,7 +201,7 @@
     </div>
 
     <!-- Level Cleared Modal -->
-    <div id="modal-victory" class="game-modal">
+    <div id="modal-victory" class="game-modal" role="dialog" aria-modal="true" aria-label="Level selesai" aria-hidden="true" hidden inert>
       <div class="modal-card victory-card">
         <div class="victory-stars" id="victory-stars">
           <span class="star">★</span>
@@ -230,7 +239,7 @@
     </div>
 
     <!-- Game Over Modal -->
-    <div id="modal-gameover" class="game-modal">
+    <div id="modal-gameover" class="game-modal" role="dialog" aria-modal="true" aria-label="Game over" aria-hidden="true" hidden inert>
       <div class="modal-card gameover-card">
         <div class="gameover-icon">💥</div>
         <h2>BOLA MELETUS!</h2>
@@ -243,7 +252,7 @@
     </div>
 
     <!-- Game Completed (All levels cleared) -->
-    <div id="modal-game-complete" class="game-modal">
+    <div id="modal-game-complete" class="game-modal" role="dialog" aria-modal="true" aria-label="Game selesai" aria-hidden="true" hidden inert>
       <div class="modal-card complete-card">
         <div class="trophy-icon">🏆</div>
         <h2>SELAMAT! KAMU JUARA BOUNCE!</h2>
@@ -262,15 +271,20 @@
   </div>
 
   <!-- Scripts -->
-  <script src="src/audio.js"></script>
-  <script src="src/particles.js"></script>
-  <script src="src/physics.js"></script>
-  <script src="src/levels.js"></script>
-  <script src="src/game.js"></script>
+  <script src="src/audio.js?v=level26-fix-20260925-1"></script>
+  <script src="src/particles.js?v=level26-fix-20260925-1"></script>
+  <script src="src/physics.js?v=level26-fix-20260925-1"></script>
+  <script src="src/levels.js?v=level26-fix-20260925-1"></script>
+  <script src="src/game.js?v=level26-fix-20260925-1"></script>
   <script>
+    // Testing build: clear old PWA caches so the level status UI is not hidden by stale service-worker assets.
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.getRegistrations()
+          .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+          .then(() => caches && caches.keys ? caches.keys() : [])
+          .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+          .catch(() => {});
       });
     }
   </script>

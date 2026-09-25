@@ -209,7 +209,8 @@ class LevelBuilder {
     this.springs.push({
       x: col * this.ts,
       y: row * this.ts,
-      isSuper: isSuper
+      isSuper: isSuper,
+      power: isSuper ? -760 : -640
     });
   }
 
@@ -453,7 +454,8 @@ class LevelBuilder {
   }
 
   build() {
-    this.targetRings = this.rings.length;
+    const totalRings = this.rings.length;
+    this.targetRings = Math.max(1, Math.ceil(totalRings * 0.7));
     return {
       id: this.index + 1,
       number: this.index + 1,
@@ -470,6 +472,7 @@ class LevelBuilder {
       dirtColor: this.dirtColor,
       tutorialText: this.tutorialText,
       targetRings: this.targetRings,
+      totalRings: totalRings,
       parTime: this.parTime,
       rings: this.rings,
       springs: this.springs,
@@ -637,7 +640,7 @@ const LEVEL_DEFINITIONS = [
     // Level 12: Semburan Uap Panas
     b.tutorialText = "Awas pipa uap panas! Jarum pengukur dan lampu merah memberi aba-aba sebelum meletup.";
     b.addSteamPipe(15, 15, 3.2, 0);
-    b.addPlatform(19, 24, 13, 'wood_stilt');
+    b.addPlatform(19, 24, 14, 'wood_stilt');
     b.addSteamPipe(27, 15, 3.2, 1.5);
     b.addRingArc(13, 17, 50, 3);
     b.addRingLine(20, 23, 24);
@@ -669,7 +672,7 @@ const LEVEL_DEFINITIONS = [
     // Level 15: Ranjau Duri Bergerak
     b.tutorialText = "Awas ranjau duri besi berputar! Amati jalurnya sebelum melompat.";
     b.addPatrol(16, 24, 15, 65);
-    b.addPlatform(17, 23, 12, 'wood_stilt');
+    b.addPlatform(17, 23, 14, 'wood_stilt');
     b.addRingArc(11, 15, 40, 2);
     b.addRingLine(18, 22, 24);
     b.addRingArc(25, 29, 40, 2);
@@ -745,8 +748,8 @@ const LEVEL_DEFINITIONS = [
   (b) => {
     // Level 21: Katakombe Kuno
     b.tutorialText = "Selamat datang di Labirin Kuil Pilar! Jelajahi reruntuhan kuno penuh teka-teki.";
-    b.addPlatform(13, 17, 13, 'pillar');
-    b.addPlatform(21, 25, 13, 'pillar');
+    b.addPlatform(13, 17, 14, 'pillar');
+    b.addPlatform(21, 25, 14, 'pillar');
     b.addRingArc(7, 12, 40, 2);
     b.addRingLine(14, 16, 24);
     b.addRingLine(22, 24, 24);
@@ -774,7 +777,7 @@ const LEVEL_DEFINITIONS = [
   (b) => {
     // Level 24: Kunci Gerbang Emas
     b.tutorialText = "Ambil kunci emas untuk membuka gerbang besi kuno!";
-    b.addPlatform(14, 18, 13, 'pillar');
+    b.addPlatform(14, 18, 14, 'pillar');
     b.addMysteryBlock(20, 10);
     b.addKeyGate(16, 11, 26, 13, 'gate_d3_24');
     b.addRingArc(7, 11, 40, 2);
@@ -786,21 +789,28 @@ const LEVEL_DEFINITIONS = [
     b.tutorialText = "Lompat dari satu pilar runtuh ke pilar berikutnya di atas jurang duri!";
     b.addPit(13, 25);
     b.addSpikes(13, 25, 17);
-    b.addCrumbleBridge(14, 15, 14);
-    b.addCrumbleBridge(18, 19, 14);
-    b.addCrumbleBridge(22, 23, 14);
-    b.addRing(14 * 32 + 16, 14 * 32 - 24);
-    b.addRing(18 * 32 + 16, 14 * 32 - 24);
-    b.addRing(22 * 32 + 16, 14 * 32 - 24);
+    // Lower, wider crumble steps keep the collapsing-bridge idea but remove the impossible 2-tile-up precision chain.
+    b.addCrumbleBridge(13, 15, 15);
+    b.addCrumbleBridge(17, 19, 15);
+    b.addCrumbleBridge(21, 24, 15);
+    b.addCheckpoint(12, 15);
+    b.addRing(14 * 32 + 16, 15 * 32 - 24);
+    b.addRing(18 * 32 + 16, 15 * 32 - 24);
+    b.addRing(22 * 32 + 16, 15 * 32 - 24);
     b.addRingArc(27, 31, 40, 2);
   },
   (b) => {
     // Level 26: Lorong Stalaktit Duri
     b.tutorialText = "Awas stalaktit duri menggantung di atap! Jangan melompat terlalu tinggi.";
-    b.addCeilingArch(14, 24, 9);
+    // Low ceiling hazard corridor. Do not use addCeilingArch here because its anchor pillars block the route.
+    for (let c = 14; c <= 24; c++) {
+      b.map[9][c] = { solid: true, type: 'stone' };
+    }
     b.addSpikes(15, 23, 10, 'down');
-    b.addRingLine(14, 24, 24);
     b.addRingArc(7, 11, 40, 2);
+    b.addRing(16 * 32 + 16, 14 * 32);
+    b.addRing(19 * 32 + 16, 14 * 32);
+    b.addRing(22 * 32 + 16, 14 * 32);
     b.addRingArc(26, 30, 40, 2);
   },
   (b) => {
@@ -826,7 +836,7 @@ const LEVEL_DEFINITIONS = [
   (b) => {
     // Level 29: Kolonade Angker
     b.tutorialText = "Dua ranjau arwah menjaga kolonade panjang. Gunakan teras atas untuk menghindar.";
-    b.addPlatform(15, 31, 12, 'pillar');
+    b.addPlatform(15, 31, 14, 'pillar');
     b.addPatrol(15, 22, 15, 65);
     b.addPatrol(24, 31, 15, 65);
     b.addRingLine(16, 22, 24);
@@ -981,9 +991,9 @@ const LEVEL_DEFINITIONS = [
   (b) => {
     // Level 41: Ambang Kosmik
     b.tutorialText = "Selamat datang di Benteng Dimensi & Warp! Medan gravitasi astral penuh aksi spektakuler.";
-    b.addPlatform(12, 17, 13, 'pillar');
-    b.addPlatform(21, 26, 11, 'pillar');
-    b.addPlatform(30, 35, 13, 'pillar');
+    b.addPlatform(12, 17, 14, 'pillar');
+    b.addPlatform(21, 26, 12, 'pillar');
+    b.addPlatform(30, 35, 14, 'pillar');
     b.addRingArc(6, 10, 40, 2);
     b.addRingLine(13, 16, 24);
     b.addRingLine(22, 25, 24);
@@ -1017,7 +1027,7 @@ const LEVEL_DEFINITIONS = [
     b.tutorialText = "Super trampolin melontarkanmu menembus konstelasi cincin bintang di langit!";
     b.addPit(13, 23);
     b.addSpring(12, 15, true);
-    b.addPlatform(24, 34, 11, 'pillar');
+    b.addPlatform(22, 34, 11, 'pillar');
     b.addRingArc(12, 24, 60, 3);
     b.addRingLine(25, 31, 24);
     b.addRingArc(35, 39, 40, 2);
@@ -1039,7 +1049,7 @@ const LEVEL_DEFINITIONS = [
     b.tutorialText = "Jembatan rapuh di atas kehampaan kosmik dengan ranjau bintang berpatroli!";
     b.addPit(14, 26);
     b.addCrumbleBridge(14, 26, 14);
-    b.addPatrol(16, 24, 13, 65);
+    b.addPatrol(16, 24, 14, 65);
     b.addRing(15 * 32 + 16, 14 * 32 - 24);
     b.addRing(18 * 32 + 16, 14 * 32 - 24);
     b.addRing(22 * 32 + 16, 14 * 32 - 24);
